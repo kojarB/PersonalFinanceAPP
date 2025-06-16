@@ -168,85 +168,53 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    interestRateInput.addEventListener('input', (e) => {
+    interestRateInput.addEventListener('beforeinput', (e) => {
+        // This event fires before the input value is changed.
+        // It allows us to prevent invalid input from ever being added to the field.
         const input = e.target;
-        const currentValue = input.value;
-        const originalSelectionStart = input.selectionStart;
+        const value = input.value;
+        const selectionStart = input.selectionStart;
+        const selectionEnd = input.selectionEnd;
+        const data = e.data; // The character(s) being inserted. Can be null for deletions.
 
-        // Normalize commas to dots for consistent processing
-        const valueNormalizedCommas = currentValue.replace(/,/g, '.');
-
-        // Sanitize the entire normalized string (only digits and one dot)
-        let finalSanitizedValue = '';
-        let hasDot = false;
-        for (let i = 0; i < valueNormalizedCommas.length; i++) {
-            const char = valueNormalizedCommas[i];
-            if (char >= '0' && char <= '9') {
-                finalSanitizedValue += char;
-            } else if (char === '.' && !hasDot) {
-                finalSanitizedValue += char;
-                hasDot = true;
-            }
+        // Allow deletions, arrow keys, etc. (anything that doesn't insert data)
+        if (!data) {
+            return;
         }
 
-        // Calculate the new cursor position
-        let newCursorPos = 0;
-        let relevantCharsBeforeOldCursor = 0;
-        // Count "relevant" characters (digits or the first dot) in the
-        // *comma-normalized original value* up to the original cursor position.
-        hasDot = false; // Reset for this count
-        for (let i = 0; i < originalSelectionStart; i++) {
-            const char = valueNormalizedCommas[i];
-            if (char >= '0' && char <= '9') {
-                relevantCharsBeforeOldCursor++;
-            } else if (char === '.' && !hasDot) {
-                relevantCharsBeforeOldCursor++;
-                hasDot = true;
-            }
-        }
+        // Construct what the value of the input *would be* if this change were allowed.
+        const nextValue = value.substring(0, selectionStart) + data + value.substring(selectionEnd);
 
-        // Find the position in the *final sanitized value* that corresponds to this count.
-        let relevantCharsCountedInNew = 0;
-        if (relevantCharsBeforeOldCursor > 0) {
-            hasDot = false; // Reset for this scan
-            for (let i = 0; i < finalSanitizedValue.length; i++) {
-                const char = finalSanitizedValue[i];
-                if (char >= '0' && char <= '9') {
-                    relevantCharsCountedInNew++;
-                } else if (char === '.' && !hasDot) {
-                    relevantCharsCountedInNew++;
-                    hasDot = true;
-                }
-                newCursorPos = i + 1; 
-                if (relevantCharsCountedInNew >= relevantCharsBeforeOldCursor) {
-                    break; 
-                }
-            }
-            // If, after iterating through finalSanitizedValue, we haven't matched relevantCharsBeforeOldCursor
-            // (e.g., "123a" -> "123", cursor was after "a", relevantCharsBeforeOldCursor=3, relevantCharsCountedInNew will be 3, newCursorPos will be 3)
-            // This case should be handled by the loop itself. If relevantCharsBeforeOldCursor is greater than
-            // total relevant chars in finalSanitizedValue (e.g. original "1a2b", cursor after b, sanitized "12", relevantCharsBeforeOldCursor=2, newCursorPos will be 2)
-            // This means the cursor should be at the end of the sanitized string if all its relevant prefix chars were kept.
-             if (relevantCharsCountedInNew < relevantCharsBeforeOldCursor) {
-                newCursorPos = finalSanitizedValue.length;
-            }
+        // Test if the proposed value is valid.
+        // A valid value contains only digits and at most one decimal separator (dot or comma).
+        // We test for both dot and comma here because the user might type either.
+        // The 'input' event will handle normalizing commas to dots.
+        const isOnlyNumericAndSeparators = /^[0-9,.]*$/.test(nextValue);
+        const dotCount = (nextValue.match(/\./g) || []).length;
+        const commaCount = (nextValue.match(/,/g) || []).length;
 
-        } else {
-            newCursorPos = 0; // If no relevant chars before old cursor, new cursor is at start
+        // If the proposed value contains invalid characters, or more than one decimal separator in total, prevent the input.
+        if (!isOnlyNumericAndSeparators || (dotCount + commaCount) > 1) {
+            e.preventDefault();
         }
-        
-        if (finalSanitizedValue.length === 0) { // If everything was stripped
-            newCursorPos = 0;
-        }
+    });
 
-        if (input.value !== finalSanitizedValue) {
-            input.value = finalSanitizedValue;
-        }
+    interestRateInput.addEventListener('input', (e) => {
+        // This event fires *after* the input value has changed.
+        // Its only job now is to normalize any comma to a dot.
+        // The 'beforeinput' handler has already prevented invalid characters and multiple separators.
+        const input = e.target;
+        const value = input.value;
+        const selectionStart = input.selectionStart;
 
-        // Defer setting selection range
-        requestAnimationFrame(() => {
-            input.setSelectionRange(newCursorPos, newCursorPos);
-        });
+        // If a comma exists, replace it with a dot.
+        if (value.includes(',')) {
+            const newValue = value.replace(/,/g, '.');
+            input.value = newValue;
+            // Since we did a 1-for-1 replacement, the cursor position is stable.
+            // We just need to set it back to where it was, as changing .value moves it to the end.
+            input.setSelectionRange(selectionStart, selectionStart);
+        }
     });
 
     loanTermInput.addEventListener('input', (e) => {

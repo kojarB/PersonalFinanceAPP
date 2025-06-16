@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timeSavedLabel: 'Time Saved',
             yourSavingsTitle: 'Your Savings',
             interestSavedLabel: 'Interest Saved',
-            afterTaxSavingsLabel: 'After Tax Deduction (22%)',
+
             payoffTimeLabel: 'Payoff Time',
             monthsSooner: 'months sooner',
             currency: 'NOK',
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timeSavedLabel: 'Spart Tid',
             yourSavingsTitle: 'Dine Besparelser',
             interestSavedLabel: 'Spart Rente',
-            afterTaxSavingsLabel: 'Etter Skattefradrag (22%)',
+
             payoffTimeLabel: 'Nedbetalingstid',
             monthsSooner: 'måneder tidligere',
             currency: 'NOK',
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('timeSavedLabel').textContent = translations[lang].timeSavedLabel;
         document.getElementById('yourSavingsTitle').textContent = translations[lang].yourSavingsTitle;
         document.getElementById('interestSavedLabel').textContent = translations[lang].interestSavedLabel;
-        document.getElementById('afterTaxSavingsLabel').textContent = translations[lang].afterTaxSavingsLabel;
+
 
         loanAmountInput.placeholder = translations[lang].loanAmountPlaceholder;
         interestRateInput.placeholder = translations[lang].interestRatePlaceholder;
@@ -331,11 +331,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('extraTotal').textContent = formatCurrency(loanAmount + extraLoan.totalInterest);
 
         const interestSaved = standardLoan.totalInterest - extraLoan.totalInterest;
-        const afterTaxSavings = interestSaved * (1 - 0.22);
+
         const timeSaved = standardLoan.totalMonths - extraLoan.totalMonths;
 
         document.getElementById('interestSaved').textContent = formatCurrency(interestSaved);
-        document.getElementById('afterTaxSavings').textContent = formatCurrency(afterTaxSavings);
+
         document.getElementById('timeSaved').textContent = formatTimeSaved(timeSaved);
 
         results.style.display = 'block';

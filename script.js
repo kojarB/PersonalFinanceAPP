@@ -141,13 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
         loanTermInput.placeholder = translations[lang].loanTermPlaceholder;
         extraPaymentInput.placeholder = translations[lang].extraPaymentPlaceholder;
         
-        // Re-calculate and update display if results are visible
         if (results.style.display === 'block') {
             calculateBtn.click(); 
         }
         if (loanChart) {
             loanChart.options.scales.y.ticks.callback = value => formatCurrency(value);
-            loanChart.data.datasets[0].label = translations[lang].standardLoanTitle; // Assuming this is how you'd translate chart labels
+            loanChart.data.datasets[0].label = translations[lang].standardLoanTitle; 
             loanChart.data.datasets[1].label = translations[lang].extraPaymentsTitle;
             loanChart.update();
         }
@@ -162,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cursorPosition = e.target.selectionStart;
             const originalLength = e.target.value.length;
             const value = e.target.value;
-            const sanitizedValue = value.replace(/[^0-9]/g, ''); // Keep only numbers
+            const sanitizedValue = value.replace(/[^0-9]/g, ''); 
             e.target.value = formatNumber(sanitizedValue);
             const newLength = e.target.value.length;
             e.target.setSelectionRange(cursorPosition + (newLength - originalLength), cursorPosition + (newLength - originalLength));
@@ -170,66 +169,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     interestRateInput.addEventListener('input', (e) => {
-        const el = e.target;
-        const originalValue = el.value;
-        const originalSelectionStart = el.selectionStart;
+        const input = e.target;
+        const originalValue = input.value; // Value *after* browser handled the key press
+        const originalCursorPos = input.selectionStart;
 
-        // Step 1: Normalize all commas to dots for internal processing.
-        // Also, determine the cursor's equivalent position in this normalized string.
-        let valueForProcessing = '';
-        let normalizedCursorPos = 0; 
-        for (let i = 0; i < originalValue.length; i++) {
-            const char = originalValue[i];
-            if (i < originalSelectionStart) {
-                normalizedCursorPos++;
-            }
-            if (char === ',') {
-                valueForProcessing += '.';
-            } else {
-                valueForProcessing += char;
-            }
-        }
+        // 1. Normalize commas to dots. This doesn't change length or relative cursor position.
+        let processedValue = originalValue.replace(/,/g, '.');
 
-        // Step 2: Build the final sanitized value, allowing only numbers and one dot.
-        let formattedValue = '';
+        // 2. Sanitize: keep only digits and the first dot.
+        let sanitizedValue = '';
         let hasDot = false;
-        for (let i = 0; i < valueForProcessing.length; i++) {
-            const char = valueForProcessing[i];
-            if (char >= '0' && char <= '9') { // If it's a digit
-                formattedValue += char;
-            } else if (char === '.' && !hasDot) { // If it's a dot and we haven't added one yet
-                formattedValue += char;
+        for (let i = 0; i < processedValue.length; i++) {
+            const char = processedValue[i];
+            if (char >= '0' && char <= '9') {
+                sanitizedValue += char;
+            } else if (char === '.' && !hasDot) {
+                sanitizedValue += char;
                 hasDot = true;
             }
-            // All other characters (e.g., subsequent dots, other symbols) are ignored.
         }
 
-        el.value = formattedValue;
-
-        // Step 3: Calculate the new actual cursor position in the 'formattedValue'.
-        // Iterate through 'formattedValue' and 'valueForProcessing' (the comma-normalized original)
-        // up to where the cursor was in 'valueForProcessing' (normalizedCursorPos).
-        // Count how many of those characters actually made it into 'formattedValue'.
-        let newActualCursorPos = 0;
-        let tempProcessedCharsCount = 0; // How many chars from valueForProcessing we've considered
-        let tempFormattedCharsCount = 0; // How many chars in formattedValue correspond
-
-        for (let i = 0; i < valueForProcessing.length && tempProcessedCharsCount < normalizedCursorPos; i++) {
-            const charFromProcessed = valueForProcessing[i];
-            tempProcessedCharsCount++;
-
-            // Check if this character from the (comma-normalized) original string
-            // exists at the current position in the final formatted string.
-            if (tempFormattedCharsCount < formattedValue.length && formattedValue[tempFormattedCharsCount] === charFromProcessed) {
-                tempFormattedCharsCount++;
+        // 3. Calculate new cursor position
+        let newCursorPos = 0;
+        // Count characters that were kept from processedValue up to originalCursorPos
+        for (let i = 0; i < originalCursorPos; i++) {
+            const charFromProcessed = processedValue[i];
+            // If the character at the current newCursorPos in sanitizedValue matches charFromProcessed,
+            // it means this character was kept, so we can advance the newCursorPos.
+            if (newCursorPos < sanitizedValue.length && sanitizedValue[newCursorPos] === charFromProcessed) {
+                newCursorPos++;
+            } else {
+                // If charFromProcessed was a second dot or invalid char that got removed,
+                // newCursorPos does not advance, but we effectively skipped over a char
+                // from the original caret's perspective in processedValue.
+                // This logic might need adjustment if charFromProcessed itself was removed AND
+                // the character at sanitizedValue[newCursorPos] is different but also valid.
+                // The current logic assumes a direct mapping or removal.
             }
-            // If charFromProcessed was a dot that got removed (e.g. a second dot), 
-            // tempFormattedCharsCount doesn't advance, but tempProcessedCharsCount does.
-            // This correctly maps the cursor position.
         }
-        newActualCursorPos = tempFormattedCharsCount;
+        
+        // If the input was entirely invalid and sanitizedValue is empty, cursor should be 0.
+        if (sanitizedValue.length === 0) {
+            newCursorPos = 0;
+        }
+        // Ensure cursor is not beyond the length of the sanitized value.
+        newCursorPos = Math.min(newCursorPos, sanitizedValue.length);
 
-        el.setSelectionRange(newActualCursorPos, newActualCursorPos);
+        input.value = sanitizedValue;
+        input.setSelectionRange(newCursorPos, newCursorPos);
     });
 
     loanTermInput.addEventListener('input', (e) => {
@@ -240,14 +227,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const monthlyRate = annualRate / 100 / 12;
         const totalMonths = termYears * 12;
         let monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
-        if (isNaN(monthlyPayment) || !isFinite(monthlyPayment)) monthlyPayment = principal / totalMonths; // Simple fallback for 0% interest
+        if (isNaN(monthlyPayment) || !isFinite(monthlyPayment)) monthlyPayment = principal / totalMonths; 
 
         let balance = principal;
         let totalInterest = 0;
         const amortization = [];
         let months = 0;
 
-        for (months = 0; months < totalMonths * 2 && balance > 0.01; months++) { // Safety break at 2*termYears
+        for (months = 0; months < totalMonths * 2 && balance > 0.01; months++) { 
             const interestPayment = balance * monthlyRate;
             const principalPayment = (monthlyPayment - interestPayment) + extraMonthlyPayment;
             balance -= principalPayment;
@@ -293,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scales: {
                     x: {
                         type: 'linear',
-                        title: { display: true, text: 'Years' }, // Consider translating 'Years'
+                        title: { display: true, text: 'Years' }, 
                         ticks: {
                             stepSize: 1,
                             maxTicksLimit: maxYears < 15 ? maxYears + 1 : 15, 
@@ -305,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     },
                     y: {
-                        title: { display: true, text: 'Loan Balance' }, // Consider translating 'Loan Balance'
+                        title: { display: true, text: 'Loan Balance' }, 
                         ticks: { callback: value => formatCurrency(value) }
                     }
                 }

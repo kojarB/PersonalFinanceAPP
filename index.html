@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Savings Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="lang-switch">
+            <label class="toggle-switch">
+                <input type="checkbox" id="lang-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <h1 data-key="title">Loan Savings Calculator</h1>
+        
+        <div class="calculator">
+            <div class="input-group">
+                <label for="loanAmount" data-key="loanAmountLabel">Total Loan Amount</label>
+                <div class="input-with-currency">
+                    <input type="text" id="loanAmount" required inputmode="numeric">
+                    <span class="currency-indicator"></span>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="interestRate" data-key="interestRateLabel">Annual Interest Rate (%)</label>
+                <input type="number" id="interestRate" min="0.1" step="0.1" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="loanTerm" data-key="loanTermLabel">Loan Term (years)</label>
+                <input type="number" id="loanTerm" min="1" max="40" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="extraPayment" data-key="extraPaymentLabel">Extra Monthly Payment</label>
+                <div class="input-with-currency">
+                    <input type="text" id="extraPayment" inputmode="numeric">
+                    <span class="currency-indicator"></span>
+                </div>
+            </div>
+            
+            <button id="calculateBtn" class="btn" data-key="calculateBtn">Calculate Savings</button>
+        </div>
+        
+        <div id="results" style="display: none;">
+            <h2 data-key="summaryTitle">Your Savings Summary</h2>
+            <div class="results-grid">
+                <div class="results-box">
+                    <h3 data-key="standardLoanTitle">Standard Loan</h3>
+                    <p><span data-key="monthlyPaymentLabel">Monthly Payment</span> <span id="standardPayment"></span></p>
+                    <p><span data-key="totalInterestLabel">Total Interest</span> <span id="standardInterest"></span></p>
+                    <p><span data-key="totalCostLabel">Total Cost</span> <span id="standardTotal"></span></p>
+                </div>
+                <div class="results-box">
+                    <h3 data-key="extraPaymentsTitle">With Extra Payments</h3>
+                    <p><span data-key="monthlyPaymentLabel">Monthly Payment</span> <span id="extraPaymentDisplay"></span></p>
+                    <p><span data-key="totalInterestLabel">Total Interest</span> <span id="extraInterest"></span></p>
+                    <p><span data-key="totalCostLabel">Total Cost</span> <span id="extraTotal"></span></p>
+                </div>
+                <div class="results-box savings-summary">
+                    <h3 data-key="yourSavingsTitle">Your Savings</h3>
+                    <p><span data-key="interestSavedLabel">Interest Saved</span> <span id="interestSaved"></span></p>
+                    <p><span data-key="afterTaxSavingsLabel">After Tax Deduction (22%)</span> <span id="afterTaxSavings"></span></p>
+                    <p><span data-key="timeSavedLabel">Time Saved</span> <span id="timeSaved"></span></p>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="loanChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

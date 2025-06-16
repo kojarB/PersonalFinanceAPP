@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             payoffTimeLabel: 'Payoff Time',
             monthsSooner: 'months sooner',
             currency: 'NOK',
-            locale: 'en-US', // Keep locale for language formatting, but use NOK currency
+            locale: 'en-US', 
             currencySymbol: 'NOK',
             loanAmountPlaceholder: 'e.g., 2 500 000',
             interestRatePlaceholder: 'e.g., 5.4',
@@ -50,14 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
             interestSavedLabel: 'Spart Rente',
             afterTaxSavingsLabel: 'Etter Skattefradrag (22%)',
             payoffTimeLabel: 'Nedbetalingstid',
-            monthsSooner: 'måneder raskere',
+            monthsSooner: 'måneder tidligere',
             currency: 'NOK',
             locale: 'nb-NO',
             currencySymbol: 'NOK',
-            loanAmountPlaceholder: 'f.eks., 2 500 000',
-            interestRatePlaceholder: 'f.eks., 5,4',
-            loanTermPlaceholder: 'f.eks., 30',
-            extraPaymentPlaceholder: 'f.eks., 200',
+            loanAmountPlaceholder: 'f.eks. 2 500 000',
+            interestRatePlaceholder: 'f.eks. 5,4',
+            loanTermPlaceholder: 'f.eks. 30',
+            extraPaymentPlaceholder: 'f.eks. 200',
             yearSingular: 'år',
             yearPlural: 'år',
             monthSingular: 'måned',
@@ -66,52 +66,90 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    let currentLang = 'en';
+    let currentLanguage = 'en';
+    let loanChart = null;
 
-    // DOM Elements
-    const calculateBtn = document.getElementById('calculateBtn');
-    const results = document.getElementById('results');
     const loanAmountInput = document.getElementById('loanAmount');
-    const extraPaymentInput = document.getElementById('extraPayment');
     const interestRateInput = document.getElementById('interestRate');
     const loanTermInput = document.getElementById('loanTerm');
-    let loanChart = null;
+    const extraPaymentInput = document.getElementById('extraPayment');
+    const calculateBtn = document.getElementById('calculateBtn');
+    const results = document.getElementById('results');
 
     const formatNumber = (numStr) => {
         if (!numStr) return '';
-        const sanitized = numStr.toString().replace(/[^0-9]/g, '');
-        return sanitized.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        const num = parseFloat(numStr.replace(/\s/g, ''));
+        if (isNaN(num)) return '';
+        return num.toLocaleString(translations[currentLanguage].locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 }).replace(/,/g, ' ');
     };
 
-    const parseNumber = (numStr) => {
-        if (!numStr) return 0;
-        return parseFloat(numStr.toString().replace(/\s/g, ''));
+    const parseNumber = (formattedStr) => {
+        if (!formattedStr) return null;
+        return parseFloat(formattedStr.replace(/\s/g, '').replace(',', '.'));
     };
-    
-    const parseInterestRate = (rateStr) => {
-        if (!rateStr) return 0;
-        return parseFloat(rateStr.toString().replace(',', '.'));
-    }
+
+    const parseInterestRate = (formattedStr) => {
+        if (!formattedStr) return null;
+        return parseFloat(formattedStr.replace(',', '.'));
+    };
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat(translations[currentLanguage].locale, {
+            style: 'currency',
+            currency: translations[currentLanguage].currencySymbol,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    };
+
+    const formatTimeSaved = (totalMonths) => {
+        const years = Math.floor(totalMonths / 12);
+        const months = totalMonths % 12;
+        let result = '';
+        if (years > 0) {
+            result += `${years} ${years === 1 ? translations[currentLanguage].yearSingular : translations[currentLanguage].yearPlural}`;
+        }
+        if (months > 0) {
+            if (years > 0) result += ` ${translations[currentLanguage].and} `;
+            result += `${months} ${months === 1 ? translations[currentLanguage].monthSingular : translations[currentLanguage].monthPlural}`;
+        }
+        return result || '0 ' + translations[currentLanguage].monthPlural;
+    };
 
     const setLanguage = (lang) => {
-        currentLang = lang;
-        document.querySelectorAll('[data-key]').forEach(elem => {
-            const key = elem.getAttribute('data-key');
-            if (translations[lang][key]) {
-                elem.textContent = translations[lang][key];
-            }
-        });
-        document.querySelectorAll('.currency-indicator').forEach(elem => {
-            elem.textContent = translations[lang].currencySymbol;
-        });
+        currentLanguage = lang;
+        document.documentElement.lang = lang;
+        document.getElementById('title').textContent = translations[lang].title;
+        document.getElementById('loanAmountLabel').textContent = translations[lang].loanAmountLabel;
+        document.getElementById('interestRateLabel').textContent = translations[lang].interestRateLabel;
+        document.getElementById('loanTermLabel').textContent = translations[lang].loanTermLabel;
+        document.getElementById('extraPaymentLabel').textContent = translations[lang].extraPaymentLabel;
+        calculateBtn.textContent = translations[lang].calculateBtn;
+        document.getElementById('summaryTitle').textContent = translations[lang].summaryTitle;
+        document.getElementById('standardLoanTitle').textContent = translations[lang].standardLoanTitle;
+        document.getElementById('monthlyPaymentLabel').textContent = translations[lang].monthlyPaymentLabel;
+        document.getElementById('totalInterestLabel').textContent = translations[lang].totalInterestLabel;
+        document.getElementById('totalCostLabel').textContent = translations[lang].totalCostLabel;
+        document.getElementById('extraPaymentsTitle').textContent = translations[lang].extraPaymentsTitle;
+        document.getElementById('timeSavedLabel').textContent = translations[lang].timeSavedLabel;
+        document.getElementById('yourSavingsTitle').textContent = translations[lang].yourSavingsTitle;
+        document.getElementById('interestSavedLabel').textContent = translations[lang].interestSavedLabel;
+        document.getElementById('afterTaxSavingsLabel').textContent = translations[lang].afterTaxSavingsLabel;
 
         loanAmountInput.placeholder = translations[lang].loanAmountPlaceholder;
         interestRateInput.placeholder = translations[lang].interestRatePlaceholder;
         loanTermInput.placeholder = translations[lang].loanTermPlaceholder;
         extraPaymentInput.placeholder = translations[lang].extraPaymentPlaceholder;
-
+        
+        // Re-calculate and update display if results are visible
         if (results.style.display === 'block') {
-            calculateBtn.click();
+            calculateBtn.click(); 
+        }
+        if (loanChart) {
+            loanChart.options.scales.y.ticks.callback = value => formatCurrency(value);
+            loanChart.data.datasets[0].label = translations[lang].standardLoanTitle; // Assuming this is how you'd translate chart labels
+            loanChart.data.datasets[1].label = translations[lang].extraPaymentsTitle;
+            loanChart.update();
         }
     };
 
@@ -124,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cursorPosition = e.target.selectionStart;
             const originalLength = e.target.value.length;
             const value = e.target.value;
-            const sanitizedValue = value.replace(/[^0-9]/g, '');
+            const sanitizedValue = value.replace(/[^0-9]/g, ''); // Keep only numbers
             e.target.value = formatNumber(sanitizedValue);
             const newLength = e.target.value.length;
             e.target.setSelectionRange(cursorPosition + (newLength - originalLength), cursorPosition + (newLength - originalLength));
@@ -136,144 +174,88 @@ document.addEventListener('DOMContentLoaded', () => {
         const originalValue = el.value;
         const originalSelectionStart = el.selectionStart;
 
-        // Step 1: Normalize all commas to dots for internal processing
-        // Also, keep track of how this normalization affects the string relative to the cursor
+        // Step 1: Normalize all commas to dots for internal processing.
+        // Also, determine the cursor's equivalent position in this normalized string.
         let valueForProcessing = '';
-        let charsBeforeCursorNormalized = 0;
-        let commaReplacedAtCursor = false;
-
+        let normalizedCursorPos = 0; 
         for (let i = 0; i < originalValue.length; i++) {
             const char = originalValue[i];
+            if (i < originalSelectionStart) {
+                normalizedCursorPos++;
+            }
             if (char === ',') {
                 valueForProcessing += '.';
-                if (i < originalSelectionStart) {
-                    charsBeforeCursorNormalized++;
-                    if (i === originalSelectionStart - 1) commaReplacedAtCursor = true;
-                }
             } else {
                 valueForProcessing += char;
-                if (i < originalSelectionStart) {
-                    charsBeforeCursorNormalized++;
-                }
             }
         }
 
-        // Step 2: Build the sanitized value, allowing only numbers and one dot
+        // Step 2: Build the final sanitized value, allowing only numbers and one dot.
         let formattedValue = '';
         let hasDot = false;
         for (let i = 0; i < valueForProcessing.length; i++) {
             const char = valueForProcessing[i];
-            if (char >= '0' && char <= '9') {
+            if (char >= '0' && char <= '9') { // If it's a digit
                 formattedValue += char;
-            } else if (char === '.' && !hasDot) {
+            } else if (char === '.' && !hasDot) { // If it's a dot and we haven't added one yet
                 formattedValue += char;
                 hasDot = true;
             }
+            // All other characters (e.g., subsequent dots, other symbols) are ignored.
         }
 
         el.value = formattedValue;
 
-        // Step 3: Calculate new cursor position
-        // Count how many characters that would form the final valid string
-        // were present up to the original cursor position in the *normalized* original string.
-        let newCursorPos = 0;
-        let validCharsCountedInNew = 0;
-        let dotEncounteredInNew = false;
+        // Step 3: Calculate the new actual cursor position in the 'formattedValue'.
+        // Iterate through 'formattedValue' and 'valueForProcessing' (the comma-normalized original)
+        // up to where the cursor was in 'valueForProcessing' (normalizedCursorPos).
+        // Count how many of those characters actually made it into 'formattedValue'.
+        let newActualCursorPos = 0;
+        let tempProcessedCharsCount = 0; // How many chars from valueForProcessing we've considered
+        let tempFormattedCharsCount = 0; // How many chars in formattedValue correspond
 
-        for (let i = 0; i < formattedValue.length; i++) {
-            const char = formattedValue[i];
-            if (char >= '0' && char <= '9') {
-                validCharsCountedInNew++;
-            } else if (char === '.' && !dotEncounteredInNew) {
-                validCharsCountedInNew++;
-                dotEncounteredInNew = true;
+        for (let i = 0; i < valueForProcessing.length && tempProcessedCharsCount < normalizedCursorPos; i++) {
+            const charFromProcessed = valueForProcessing[i];
+            tempProcessedCharsCount++;
+
+            // Check if this character from the (comma-normalized) original string
+            // exists at the current position in the final formatted string.
+            if (tempFormattedCharsCount < formattedValue.length && formattedValue[tempFormattedCharsCount] === charFromProcessed) {
+                tempFormattedCharsCount++;
             }
-            newCursorPos = i + 1;
-            if (validCharsCountedInNew >= charsBeforeCursorNormalized) {
-                 // If a comma was just typed and became a dot, and it's the first dot,
-                 // the cursor should stay after it.
-                if (commaReplacedAtCursor && originalValue[originalSelectionStart-1] === ',' && formattedValue[newCursorPos-1] === '.' && !hasDot) {
-                    // no change needed if it's the only dot
-                } else if (originalValue[originalSelectionStart-1] === ',' && formattedValue[newCursorPos-1] !== '.'){
-                    // if comma was removed (e.g. second comma), cursor might need to go back
-                    newCursorPos--;
-                }
-                break;
-            }
+            // If charFromProcessed was a dot that got removed (e.g. a second dot), 
+            // tempFormattedCharsCount doesn't advance, but tempProcessedCharsCount does.
+            // This correctly maps the cursor position.
         }
-        
-        if (charsBeforeCursorNormalized === 0) {
-            newCursorPos = 0;
-        } else if (validCharsCountedInNew < charsBeforeCursorNormalized && formattedValue.length > 0) {
-            // This case means some valid chars before cursor were removed, place cursor at end of what remains of them
-             newCursorPos = validCharsCountedInNew;
-        } else if (formattedValue.length === 0) {
-            newCursorPos = 0;
-        }
+        newActualCursorPos = tempFormattedCharsCount;
 
-        // Ensure cursor is not out of bounds
-        newCursorPos = Math.max(0, Math.min(newCursorPos, formattedValue.length));
-
-        el.setSelectionRange(newCursorPos, newCursorPos);
+        el.setSelectionRange(newActualCursorPos, newActualCursorPos);
     });
 
     loanTermInput.addEventListener('input', (e) => {
         e.target.value = e.target.value.replace(/[^0-9]/g, '');
     });
 
-    const formatCurrency = (amount) => {
-        const { locale, currency } = translations[currentLang];
-        return new Intl.NumberFormat(locale, {
-            style: 'currency',
-            currency: currency,
-        }).format(amount);
-    };
+    const calculateAmortization = (principal, annualRate, termYears, extraMonthlyPayment) => {
+        const monthlyRate = annualRate / 100 / 12;
+        const totalMonths = termYears * 12;
+        let monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+        if (isNaN(monthlyPayment) || !isFinite(monthlyPayment)) monthlyPayment = principal / totalMonths; // Simple fallback for 0% interest
 
-    const calculateMonthlyPayment = (principal, annualRate, years) => {
-        const monthlyRate = annualRate / 12 / 100;
-        const numPayments = years * 12;
-        if (monthlyRate === 0) return principal / numPayments;
-        return principal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-    };
-
-    const calculateAmortization = (principal, annualRate, years, extraPayment = 0) => {
-        const monthlyPayment = calculateMonthlyPayment(principal, annualRate, years);
         let balance = principal;
         let totalInterest = 0;
-        let month = 0;
-        const amortization = [{ month: 0, balance: balance }];
+        const amortization = [];
+        let months = 0;
 
-        while (balance > 0) {
-            month++;
-            const interest = balance * (annualRate / 12 / 100);
-            let principalPayment = monthlyPayment - interest + extraPayment;
-
-            if (balance - principalPayment < 0) {
-                totalInterest += interest;
-                balance = 0;
-            } else {
-                balance -= principalPayment;
-                totalInterest += interest;
-            }
-            amortization.push({ month: month, balance: balance });
-
-            if (month > years * 12 * 2) break; // Safety break
+        for (months = 0; months < totalMonths * 2 && balance > 0.01; months++) { // Safety break at 2*termYears
+            const interestPayment = balance * monthlyRate;
+            const principalPayment = (monthlyPayment - interestPayment) + extraMonthlyPayment;
+            balance -= principalPayment;
+            totalInterest += interestPayment;
+            amortization.push({ month: months + 1, balance: Math.max(0, balance) });
+            if (balance <= 0.01) break;
         }
-        return { monthlyPayment, totalInterest, totalMonths: month, amortization };
-    };
-
-    const formatTimeSaved = (months) => {
-        const langTranslations = translations[currentLang];
-        const years = Math.floor(months / 12);
-        const remainingMonths = Math.round(months % 12);
-        let result = [];
-        if (years > 0) {
-            result.push(`${years} ${years > 1 ? langTranslations.yearPlural : langTranslations.yearSingular}`);
-        }
-        if (remainingMonths > 0) {
-            result.push(`${remainingMonths} ${remainingMonths > 1 ? langTranslations.monthPlural : langTranslations.monthSingular}`);
-        }
-        return result.join(` ${langTranslations.and} `);
+        return { monthlyPayment, totalInterest, totalMonths: months +1, amortization };
     };
 
     const updateChart = (standardAmortization, extraAmortization) => {
@@ -285,18 +267,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const standardData = standardAmortization.map(p => ({ x: p.month / 12, y: p.balance }));
         const extraData = extraAmortization.map(p => ({ x: p.month / 12, y: p.balance }));
 
-        const maxYears = Math.ceil(standardAmortization[standardAmortization.length - 1].month / 12);
+        const maxYears = Math.max(
+            Math.ceil(standardAmortization[standardAmortization.length - 1].month / 12),
+            extraAmortization.length > 0 ? Math.ceil(extraAmortization[extraAmortization.length - 1].month / 12) : 0
+        );
 
         loanChart = new Chart(ctx, {
             type: 'line',
             data: {
                 datasets: [{
-                    label: 'Standard Loan Balance',
+                    label: translations[currentLanguage].standardLoanTitle || 'Standard Loan Balance',
                     data: standardData,
                     borderColor: 'rgb(75, 192, 192)',
                     tension: 0.1
                 }, {
-                    label: 'Loan Balance with Extra Payments',
+                    label: translations[currentLanguage].extraPaymentsTitle || 'Loan Balance with Extra Payments',
                     data: extraData,
                     borderColor: 'rgb(255, 99, 132)',
                     tension: 0.1
@@ -308,9 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 scales: {
                     x: {
                         type: 'linear',
-                        title: { display: true, text: 'Years' },
+                        title: { display: true, text: 'Years' }, // Consider translating 'Years'
                         ticks: {
-                            maxTicksLimit: maxYears < 15 ? maxYears + 1 : 15, // Limit ticks for readability
+                            stepSize: 1,
+                            maxTicksLimit: maxYears < 15 ? maxYears + 1 : 15, 
                             callback: function(value) {
                                 if (Math.floor(value) === value) {
                                     return value;
@@ -319,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     },
                     y: {
-                        title: { display: true, text: 'Loan Balance' },
+                        title: { display: true, text: 'Loan Balance' }, // Consider translating 'Loan Balance'
                         ticks: { callback: value => formatCurrency(value) }
                     }
                 }

@@ -37,4 +37,4 @@ This site can be easily deployed using any static site hosting service. The reco
 4.  Choose the `main` branch and the `/ (root)` folder.
 5.  Click **Save**.
 
-Your site will be live at `https://<your-username>.github.io/<repository-name>/` in a few minutes.
+Your site will be live at `https://kojarB.github.io/PersonalFinanceAPP` in a few minutes.

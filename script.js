@@ -132,7 +132,89 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     interestRateInput.addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/[^0-9,.]/g, '');
+        const el = e.target;
+        const originalValue = el.value;
+        const originalSelectionStart = el.selectionStart;
+
+        // Step 1: Normalize all commas to dots for internal processing
+        // Also, keep track of how this normalization affects the string relative to the cursor
+        let valueForProcessing = '';
+        let charsBeforeCursorNormalized = 0;
+        let commaReplacedAtCursor = false;
+
+        for (let i = 0; i < originalValue.length; i++) {
+            const char = originalValue[i];
+            if (char === ',') {
+                valueForProcessing += '.';
+                if (i < originalSelectionStart) {
+                    charsBeforeCursorNormalized++;
+                    if (i === originalSelectionStart - 1) commaReplacedAtCursor = true;
+                }
+            } else {
+                valueForProcessing += char;
+                if (i < originalSelectionStart) {
+                    charsBeforeCursorNormalized++;
+                }
+            }
+        }
+
+        // Step 2: Build the sanitized value, allowing only numbers and one dot
+        let formattedValue = '';
+        let hasDot = false;
+        for (let i = 0; i < valueForProcessing.length; i++) {
+            const char = valueForProcessing[i];
+            if (char >= '0' && char <= '9') {
+                formattedValue += char;
+            } else if (char === '.' && !hasDot) {
+                formattedValue += char;
+                hasDot = true;
+            }
+        }
+
+        el.value = formattedValue;
+
+        // Step 3: Calculate new cursor position
+        // Count how many characters that would form the final valid string
+        // were present up to the original cursor position in the *normalized* original string.
+        let newCursorPos = 0;
+        let validCharsCountedInNew = 0;
+        let dotEncounteredInNew = false;
+
+        for (let i = 0; i < formattedValue.length; i++) {
+            const char = formattedValue[i];
+            if (char >= '0' && char <= '9') {
+                validCharsCountedInNew++;
+            } else if (char === '.' && !dotEncounteredInNew) {
+                validCharsCountedInNew++;
+                dotEncounteredInNew = true;
+            }
+            newCursorPos = i + 1;
+            if (validCharsCountedInNew >= charsBeforeCursorNormalized) {
+                 // If a comma was just typed and became a dot, and it's the first dot,
+                 // the cursor should stay after it.
+                if (commaReplacedAtCursor && originalValue[originalSelectionStart-1] === ',' && formattedValue[newCursorPos-1] === '.' && !hasDot) {
+                    // no change needed if it's the only dot
+                } else if (originalValue[originalSelectionStart-1] === ',' && formattedValue[newCursorPos-1] !== '.'){
+                    // if comma was removed (e.g. second comma), cursor might need to go back
+                    newCursorPos--;
+                }
+                break;
+            }
+        }
+        
+        if (charsBeforeCursorNormalized === 0) {
+            newCursorPos = 0;
+        } else if (validCharsCountedInNew < charsBeforeCursorNormalized && formattedValue.length > 0) {
+            // This case means some valid chars before cursor were removed, place cursor at end of what remains of them
+             newCursorPos = validCharsCountedInNew;
+        } else if (formattedValue.length === 0) {
+            newCursorPos = 0;
+        }
+
+        // Ensure cursor is not out of bounds
+        newCursorPos = Math.max(0, Math.min(newCursorPos, formattedValue.length));
+
+        el.setSelectionRange(newCursorPos, newCursorPos);
     });
 
     loanTermInput.addEventListener('input', (e) => {

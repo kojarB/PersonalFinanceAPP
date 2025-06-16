@@ -170,53 +170,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
     interestRateInput.addEventListener('input', (e) => {
         const input = e.target;
-        const originalValue = input.value; // Value *after* browser handled the key press
-        const originalCursorPos = input.selectionStart;
+        const currentValue = input.value;
+        const originalSelectionStart = input.selectionStart;
 
-        // 1. Normalize commas to dots. This doesn't change length or relative cursor position.
-        let processedValue = originalValue.replace(/,/g, '.');
+        // Normalize commas to dots for consistent processing
+        const valueNormalizedCommas = currentValue.replace(/,/g, '.');
 
-        // 2. Sanitize: keep only digits and the first dot.
-        let sanitizedValue = '';
+        // Sanitize the entire normalized string (only digits and one dot)
+        let finalSanitizedValue = '';
         let hasDot = false;
-        for (let i = 0; i < processedValue.length; i++) {
-            const char = processedValue[i];
+        for (let i = 0; i < valueNormalizedCommas.length; i++) {
+            const char = valueNormalizedCommas[i];
             if (char >= '0' && char <= '9') {
-                sanitizedValue += char;
+                finalSanitizedValue += char;
             } else if (char === '.' && !hasDot) {
-                sanitizedValue += char;
+                finalSanitizedValue += char;
                 hasDot = true;
             }
         }
 
-        // 3. Calculate new cursor position
+        // Calculate the new cursor position
         let newCursorPos = 0;
-        // Count characters that were kept from processedValue up to originalCursorPos
-        for (let i = 0; i < originalCursorPos; i++) {
-            const charFromProcessed = processedValue[i];
-            // If the character at the current newCursorPos in sanitizedValue matches charFromProcessed,
-            // it means this character was kept, so we can advance the newCursorPos.
-            if (newCursorPos < sanitizedValue.length && sanitizedValue[newCursorPos] === charFromProcessed) {
-                newCursorPos++;
-            } else {
-                // If charFromProcessed was a second dot or invalid char that got removed,
-                // newCursorPos does not advance, but we effectively skipped over a char
-                // from the original caret's perspective in processedValue.
-                // This logic might need adjustment if charFromProcessed itself was removed AND
-                // the character at sanitizedValue[newCursorPos] is different but also valid.
-                // The current logic assumes a direct mapping or removal.
+        let relevantCharsBeforeOldCursor = 0;
+        // Count "relevant" characters (digits or the first dot) in the
+        // *comma-normalized original value* up to the original cursor position.
+        hasDot = false; // Reset for this count
+        for (let i = 0; i < originalSelectionStart; i++) {
+            const char = valueNormalizedCommas[i];
+            if (char >= '0' && char <= '9') {
+                relevantCharsBeforeOldCursor++;
+            } else if (char === '.' && !hasDot) {
+                relevantCharsBeforeOldCursor++;
+                hasDot = true;
             }
         }
+
+        // Find the position in the *final sanitized value* that corresponds to this count.
+        let relevantCharsCountedInNew = 0;
+        if (relevantCharsBeforeOldCursor > 0) {
+            hasDot = false; // Reset for this scan
+            for (let i = 0; i < finalSanitizedValue.length; i++) {
+                const char = finalSanitizedValue[i];
+                if (char >= '0' && char <= '9') {
+                    relevantCharsCountedInNew++;
+                } else if (char === '.' && !hasDot) {
+                    relevantCharsCountedInNew++;
+                    hasDot = true;
+                }
+                newCursorPos = i + 1; 
+                if (relevantCharsCountedInNew >= relevantCharsBeforeOldCursor) {
+                    break; 
+                }
+            }
+            // If, after iterating through finalSanitizedValue, we haven't matched relevantCharsBeforeOldCursor
+            // (e.g., "123a" -> "123", cursor was after "a", relevantCharsBeforeOldCursor=3, relevantCharsCountedInNew will be 3, newCursorPos will be 3)
+            // This case should be handled by the loop itself. If relevantCharsBeforeOldCursor is greater than
+            // total relevant chars in finalSanitizedValue (e.g. original "1a2b", cursor after b, sanitized "12", relevantCharsBeforeOldCursor=2, newCursorPos will be 2)
+            // This means the cursor should be at the end of the sanitized string if all its relevant prefix chars were kept.
+             if (relevantCharsCountedInNew < relevantCharsBeforeOldCursor) {
+                newCursorPos = finalSanitizedValue.length;
+            }
+
+        } else {
+            newCursorPos = 0; // If no relevant chars before old cursor, new cursor is at start
+        }
         
-        // If the input was entirely invalid and sanitizedValue is empty, cursor should be 0.
-        if (sanitizedValue.length === 0) {
+        if (finalSanitizedValue.length === 0) { // If everything was stripped
             newCursorPos = 0;
         }
-        // Ensure cursor is not beyond the length of the sanitized value.
-        newCursorPos = Math.min(newCursorPos, sanitizedValue.length);
 
-        input.value = sanitizedValue;
-        input.setSelectionRange(newCursorPos, newCursorPos);
+        if (input.value !== finalSanitizedValue) {
+            input.value = finalSanitizedValue;
+        }
+
+        // Defer setting selection range
+        requestAnimationFrame(() => {
+            input.setSelectionRange(newCursorPos, newCursorPos);
+        });
     });
 
     loanTermInput.addEventListener('input', (e) => {
